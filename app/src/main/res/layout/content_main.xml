@@ -41,7 +41,7 @@
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
                     android:id="@+id/etAccount"
-                    android:text="feliche@htu.isramoon.xyz" />
+                    android:text="feliche" />
             </TableRow>
 
             <TableRow
@@ -76,7 +76,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Conectar a servidor"
-                    android:id="@+id/btnConnect" />
+                    android:id="@+id/btnConnect"
+                    android:onClick="onClickaddConnect" />
             </TableRow>
         </TableLayout>
 
@@ -104,41 +105,17 @@
         </TableLayout>
 
         <TableLayout
-            android:layout_width="fill_parent"
-            android:layout_height="78dp"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="false"
             android:stretchColumns="0,1">
 
-            <TableRow
-                android:layout_width="fill_parent"
-                android:layout_height="fill_parent">
-
-                <TextView
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Usuario"
-                    android:id="@+id/textView3" />
-
-                <TextView
-                    android:layout_width="fill_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Conectado"
-                    android:id="@+id/textView7" />
-            </TableRow>
-
-            <TableRow
+            <ImageView
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:id="@+id/imageView" />
-
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:id="@+id/imageView2" />
-            </TableRow>
+                android:layout_height="match_parent"
+                android:id="@+id/imageView"
+                android:layout_gravity="center_vertical" />
 
         </TableLayout>
 

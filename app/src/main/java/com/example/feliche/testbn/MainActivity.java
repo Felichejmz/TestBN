@@ -1,21 +1,23 @@
 package com.example.feliche.testbn;
 
-import android.content.BroadcastReceiver;
+
 import android.content.Context;
-import android.content.DialogInterface;
+
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
-import android.support.v7.app.AlertDialog;
+import android.support.v4.content.WakefulBroadcastReceiver;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.telephony.SmsMessage;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
@@ -37,11 +39,10 @@ public class MainActivity extends AppCompatActivity {
 
     TextView tvMessage;
     ImageView imageView1;
-    ImageView imageView2;
 
     private static MainActivity inst;
     private static boolean statusBroadcastReceiver;
-    private BroadcastReceiver mReceiver;
+    private WakefulBroadcastReceiver mReceiver;
 
     private static final String LOGTAG = "MainActivity:BR";
     String accountXmpp, passwordXmpp;
@@ -69,9 +70,19 @@ public class MainActivity extends AppCompatActivity {
         etTo = (EditText)findViewById(R.id.etTo);
 
         imageView1 = (ImageView)findViewById(R.id.imageView);
-        imageView2 = (ImageView)findViewById(R.id.imageView2);
 
         tvMessage = (TextView)findViewById(R.id.tvMsg);
+
+        // lee el usuario y password de memoria no volátil
+        // si no existe coloca los default de New user
+        accountXmpp = PreferenceManager.getDefaultSharedPreferences(this)
+                .getString(Def.XMPP_ACCOUNT, Def.NEW_USER_ACCOUNT);
+        passwordXmpp = PreferenceManager.getDefaultSharedPreferences(this)
+                .getString(Def.XMPP_PASSWORD, Def.NEW_USER_PASS);
+
+        if(XmppService.getState().equals(XmppConnection.ConnectionState.DISCONNECTED)){
+            btnConnect.setText("Desconectado");
+        }
     }
 
     @Override
@@ -99,11 +110,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume(){
         super.onResume();
-        mReceiver = new BroadcastReceiver() {
+        mReceiver = new WakefulBroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
                 Log.d(LOGTAG, "action=" + action);
+                Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
                 switch (action){
                     // mensaje XMPP
                     case XmppService.NEW_MESSAGE:
@@ -111,6 +123,7 @@ public class MainActivity extends AppCompatActivity {
                         String message = intent.getStringExtra(XmppService.BUNDLE_MESSAGE_BODY);
                         tvMessage.setText(from.split("@")[0]);
                         tvMessage.setText(message);
+                        v.vibrate(500);
                         break;
                     // Estado de la conexión XMPP
                     case XmppService.UPDATE_CONNECTION:
@@ -124,32 +137,16 @@ public class MainActivity extends AppCompatActivity {
                         }
                         btnConnect.setText(status);
                         break;
-                    // Mensaje SMS
-                    case XmppService.SMS_CONNECTION:
-                        Bundle bundle = intent.getExtras();
-                        if(bundle != null) {
-                            Object[] sms = (Object[]) bundle.get("pdus");
-                            String smsMsg = null;
-                            for (int i = 0; i < sms.length; i++) {
-                                SmsMessage msgSMS = SmsMessage.createFromPdu((byte[]) sms[i]);
-                                String strMsgFrom = msgSMS.getOriginatingAddress();
-                                String strMsgBody = msgSMS.getMessageBody();
-                                smsMsg = "De:" + strMsgFrom + "\n" + "Mensaje:" + strMsgBody;
-                                //saveUserPass(numberCell, numberCell);
-                                connectAccount();
-                            }
-                            tvMessage.append(smsMsg);
-                        }
-                        break;
                     // Cambio de la conexión a Internet
                     case XmppService.CHANGE_CONNECTIVITY:
                         ConnectivityManager conn = (ConnectivityManager)context.
                                 getSystemService(Context.CONNECTIVITY_SERVICE);
                         NetworkInfo networkInfo = conn.getActiveNetworkInfo();
+                        v.vibrate(500);
                         if(networkInfo == null)
-                            tvMessage.append("Sin conexion\n");
+                            tvMessage.append(" Desconectado\n");
                         else
-                            tvMessage.append(" :) Conectado");
+                            tvMessage.append(" Conectado\n");
                         break;
 
                     case XmppService.NEW_VCARD:
@@ -165,15 +162,13 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
-
         IntentFilter filter = new IntentFilter(XmppService.UPDATE_CONNECTION);
         filter.addAction(XmppService.NEW_MESSAGE);
-        filter.addAction(XmppService.SMS_CONNECTION);
         filter.addAction(XmppService.CHANGE_CONNECTIVITY);
 
         filter.addAction(XmppService.NEW_VCARD);
         filter.addAction(XmppService.NEW_MUC_MESSAGE);      // agregar el filtro del multiuserchat
-        this.registerReceiver(mReceiver, filter);
+        registerReceiver(mReceiver, filter);
         statusBroadcastReceiver = true;
     }
 
@@ -224,8 +219,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClickaddConnect(View v) {
         if (!accountXmpp.matches(Def.NEW_USER_ACCOUNT)) {
-            connectAccount();
-            return;
+            accountXmpp = etAccount.getText().toString();
+            passwordXmpp = etPassword.getText().toString();
         }
         connectXmpp();
     }
@@ -246,8 +241,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onStop() {
         super.onStop();
-        if (statusBroadcastReceiver)
-            this.unregisterReceiver(mReceiver);
+        //if (statusBroadcastReceiver)
+         //   this.unregisterReceiver(mReceiver);
     }
 
     @Override
@@ -257,14 +252,11 @@ public class MainActivity extends AppCompatActivity {
         //    this.unregisterReceiver(mReceiver);
     }
 
-    private void connectAccount() {
-        if (XmppService.getState().equals(XmppConnection.ConnectionState.DISCONNECTED)) {
-            Intent intent = new Intent(this, XmppService.class);
-            this.startService(intent);
-        } else {
-            Intent intent = new Intent(this, XmppService.class);
-            this.stopService(intent);
-            return;
-        }
+    private void saveUserPass(String accountXmpp, String passwordXmpp) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.edit()
+                .putString(Def.XMPP_ACCOUNT, accountXmpp)
+                .putString(Def.XMPP_PASSWORD, String.valueOf(passwordXmpp))
+                .apply();
     }
 }

@@ -6,8 +6,8 @@ package com.example.feliche.testbn;
 public class Def {
     // identificador de user y password en
     // shared preferences
-    public static String XMPP_ACCOUNT = "hola.taxi.user.xmpp.account";
-    public static String XMPP_PASSWORD = "hola.taxi.user.xmpp_password";
+    public static String XMPP_ACCOUNT = "testbn.user.xmpp.account";
+    public static String XMPP_PASSWORD = "testbn.user.xmpp_password";
 
     // Servidor XMPP
     public static String SERVER_NAME = "htu.isramoon.xyz";

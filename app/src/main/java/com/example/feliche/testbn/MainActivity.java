@@ -43,9 +43,13 @@ public class MainActivity extends AppCompatActivity {
     private static MainActivity inst;
     private static boolean statusBroadcastReceiver;
     private WakefulBroadcastReceiver mReceiver;
+    ConnectivityManager conn;
 
     private static final String LOGTAG = "MainActivity:BR";
     String accountXmpp, passwordXmpp;
+
+    private static NetworkInfo networkInfo;
+    private static boolean userConnection = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,34 +125,40 @@ public class MainActivity extends AppCompatActivity {
                     case XmppService.NEW_MESSAGE:
                         String from = intent.getStringExtra(XmppService.BUNDLE_FROM_JID);
                         String message = intent.getStringExtra(XmppService.BUNDLE_MESSAGE_BODY);
-                        tvMessage.setText(from.split("@")[0]);
-                        tvMessage.setText(message);
+                        tvMessage.append(from.split("@")[0]);
+                        tvMessage.append(message);
                         v.vibrate(500);
                         break;
                     // Estado de la conexión XMPP
                     case XmppService.UPDATE_CONNECTION:
                         String status = intent.getStringExtra(XmppService.CONNECTION);
-                        tvMessage.append("\n" + status);
+                        Log.d(LOGTAG,"UpdateConnection" + status);
+                        tvMessage.append(" status: " + status);
                         if (status.contains("AUTHENTICATE")) {
                             if (accountXmpp.contains(Def.NEW_USER_ACCOUNT))
                                 sendMessage();
                             else
                                 tvMessage.append("\n" + "CONECTADO CON USUARIO REGISTRADO");
+                            btnConnect.setText("Conectado");
+                        }else if(status.contains("DISCONNECTED")) {
+                            btnConnect.setText("Desconectado");
+                        }else if(status.contains("CLOSED_ERROR")){
+                            btnConnect.setText("Desconectado");
                         }
-                        btnConnect.setText(status);
+
                         break;
                     // Cambio de la conexión a Internet
                     case XmppService.CHANGE_CONNECTIVITY:
-                        ConnectivityManager conn = (ConnectivityManager)context.
-                                getSystemService(Context.CONNECTIVITY_SERVICE);
-                        NetworkInfo networkInfo = conn.getActiveNetworkInfo();
-                        v.vibrate(500);
-                        if(networkInfo == null)
-                            tvMessage.append(" Desconectado\n");
-                        else
-                            tvMessage.append(" Conectado\n");
+                        if(userConnection == true) {
+                            if(haveInternet() == true) {
+                                connectXmpp();
+                                tvMessage.append("connectXmpp :");
+                            }else {
+                                disconnectXmpp();
+                                tvMessage.append("disconnectXmpp :");
+                            }
+                        }
                         break;
-
                     case XmppService.NEW_VCARD:
                         Bundle bundleVcard = intent.getBundleExtra(XmppService.VCARD);
                         if (bundleVcard != null) {
@@ -218,21 +228,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onClickaddConnect(View v) {
-        if (!accountXmpp.matches(Def.NEW_USER_ACCOUNT)) {
-            accountXmpp = etAccount.getText().toString();
-            passwordXmpp = etPassword.getText().toString();
+        if(userConnection == false){
+            userConnection = true;
+            connectXmpp();
+        }else {
+            userConnection = false;
+            disconnectXmpp();
         }
-        connectXmpp();
     }
 
     public void connectXmpp(){
-        if(XmppService.getState().equals(XmppConnection.ConnectionState.DISCONNECTED)){
-            btnConnect.setText("Conectando");
-            Intent intent = new Intent(this, XmppService.class);
-            //startWakefulService(this,intent);
-            this.startService(intent);
-        }else{
-            btnConnect.setText("Desconectando");
+        if(XmppService.getState().equals(XmppConnection.ConnectionState.DISCONNECTED) ||
+                XmppService.getState().equals(XmppConnection.ConnectionState.CLOSED_ERROR)){
+            if(haveInternet() == true) {
+                Intent intent = new Intent(this, XmppService.class);
+                this.startService(intent);
+            }
+        }
+    }
+
+    public void disconnectXmpp(){
+        if(XmppService.getState().equals(XmppConnection.ConnectionState.AUTHENTICATE) ||
+                XmppService.getState().equals(XmppConnection.ConnectionState.CONNECTED)) {
             Intent intent = new Intent(this, XmppService.class);
             this.stopService(intent);
         }
@@ -242,6 +259,7 @@ public class MainActivity extends AppCompatActivity {
     public void onStop() {
         super.onStop();
         //if (statusBroadcastReceiver)
+            statusBroadcastReceiver = true;
          //   this.unregisterReceiver(mReceiver);
     }
 
@@ -258,5 +276,16 @@ public class MainActivity extends AppCompatActivity {
                 .putString(Def.XMPP_ACCOUNT, accountXmpp)
                 .putString(Def.XMPP_PASSWORD, String.valueOf(passwordXmpp))
                 .apply();
+    }
+
+    private boolean haveInternet(){
+        boolean estado;
+        ConnectivityManager cm =
+                (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        if(activeNetwork == null)
+            return false;
+        else
+            return true;
     }
 }

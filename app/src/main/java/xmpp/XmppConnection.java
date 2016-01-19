@@ -14,6 +14,7 @@ import com.example.feliche.testbn.Def;
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.MessageListener;
+import org.jivesoftware.smack.ReconnectionManager;
 import org.jivesoftware.smack.SASLAuthentication;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPConnection;
@@ -185,6 +186,7 @@ public class XmppConnection implements ConnectionListener, ChatManagerListener, 
         SASLAuthentication.blacklistSASLMechanism("SCRAM-SHA-1");
         SASLAuthentication.blacklistSASLMechanism("DIGEST-MD5");
 
+
         // configuración de la conexión XMPP
         builder.setHost(Def.SERVER_NAME);
         builder.setServiceName(Def.SERVER_NAME);
@@ -194,6 +196,15 @@ public class XmppConnection implements ConnectionListener, ChatManagerListener, 
 
         // crea la conexión
         mConnection = new XMPPTCPConnection(builder.build());
+
+        // set reconnection policy
+        ReconnectionManager connMgr = ReconnectionManager.getInstanceFor(mConnection);
+        connMgr.enableAutomaticReconnection();
+
+        // set reconnection default policy
+        ReconnectionManager.setEnabledPerDefault(true);
+        ReconnectionManager.setDefaultReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.FIXED_DELAY);
+
         // Configura el listener
         mConnection.addConnectionListener(this);
         // se conecta al servidor
@@ -202,7 +213,7 @@ public class XmppConnection implements ConnectionListener, ChatManagerListener, 
         mConnection.login(user, password);
 
         // Envía un Ping cada 6 minutos
-        PingManager.setDefaultPingInterval(600);
+        PingManager.setDefaultPingInterval(120);
         PingManager pingManager = PingManager.getInstanceFor(mConnection);
         pingManager.registerPingFailedListener(this);
 
@@ -212,9 +223,9 @@ public class XmppConnection implements ConnectionListener, ChatManagerListener, 
         // crear el manager del multiuserchat
         manager = MultiUserChatManager.getInstanceFor(mConnection);
         // unirse al room del mutiuser chat
-        joinMuc(Def.ROOM_BASIC);
+        //joinMuc(Def.ROOM_BASIC);
         // habilitar la recepción del multiuser chat
-        mucReceiver();
+        //mucReceiver();
     }
 
     /* Receptor del MultiUserChat */
